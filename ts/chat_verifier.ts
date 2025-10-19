@@ -17,7 +17,7 @@ import {
   showSigstoreProvenance,
   AttestationReport,
   IntelResult
-} from './attestation_verifier';
+} from './model_verifier';
 
 const API_KEY = process.env.API_KEY || '';
 const BASE_URL = 'https://cloud-api.near.ai';

@@ -52,7 +52,7 @@ pnpm install
 
 ```bash
 # Python
-python3 py/attestation_verifier.py --model deepseek-v3.1
+python3 py/model_verifier.py --model deepseek-v3.1
 
 # TypeScript
 npm run build
@@ -68,7 +68,7 @@ npx tsx src/model_verifier.ts --model deepseek-v3.1
 export API_KEY=sk-your-api-key-here
 
 # Python
-python3 py/signature_verifier.py --model deepseek-v3.1
+python3 py/chat_verifier.py --model deepseek-v3.1
 
 # TypeScript
 npm run build
@@ -89,7 +89,7 @@ Generates a fresh nonce, requests a new attestation, and verifies:
 ### Usage
 
 ```bash
-python3 attestation_verifier.py [--model MODEL_NAME]
+python3 model_verifier.py [--model MODEL_NAME]
 ```
 
 **Default model**: `deepseek-v3.1`
@@ -169,7 +169,7 @@ API_KEY=sk-your-api-key-here
 Then run:
 
 ```bash
-python3 signature_verifier.py [--model MODEL_NAME]
+python3 chat_verifier.py [--model MODEL_NAME]
 ```
 
 **Default model**: `deepseek-v3.1`
@@ -364,11 +364,11 @@ The verifier filters `all_attestations` to find the entry matching the signature
 ### Basic Attestation Verification
 
 ```bash
-# Python - Verify default Phala confidential model
-python3 py/attestation_verifier.py
+# Python - Verify confidential model
+python3 py/model_verifier.py
 
 # Python - Verify specific model
-python3 py/attestation_verifier.py --model gpt-oss-120b
+python3 py/model_verifier.py --model gpt-oss-120b
 
 # TypeScript - Verify default model
 npm run model
@@ -387,7 +387,7 @@ npx tsx src/model_verifier.ts --model gpt-oss-120b
 export API_KEY=sk-your-api-key-here
 
 # Python
-python3 py/signature_verifier.py --model deepseek-v3.1
+python3 py/chat_verifier.py --model deepseek-v3.1
 
 # TypeScript
 npm run chat -- --model deepseek-v3.1
@@ -400,7 +400,7 @@ npx tsx src/chat_verifier.ts --model deepseek-v3.1
 #### Python
 
 ```python
-from attestation_verifier import fetch_report, check_tdx_quote, check_gpu, check_report_data
+from model_verifier import fetch_report, check_tdx_quote, check_gpu, check_report_data
 import secrets
 
 # Generate fresh nonce
@@ -468,8 +468,8 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 ```bash
 # Test Python verifiers
-python3 py/attestation_verifier.py --model deepseek-v3.1
-python3 py/signature_verifier.py --model deepseek-v3.1
+python3 py/model_verifier.py --model deepseek-v3.1
+python3 py/chat_verifier.py --model deepseek-v3.1
 
 # Test TypeScript verifiers
 npm run build

@@ -6,8 +6,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "chat": "tsx src/chat_verifier.ts",
-    "model": "tsx src/model_verifier.ts",
+    "chat": "tsx ts/chat_verifier.ts",
+    "model": "tsx ts/model_verifier.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {

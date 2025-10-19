@@ -11,7 +11,7 @@ import requests
 from eth_account import Account
 from eth_account.messages import encode_defunct
 
-from attestation_verifier import (
+from model_verifier import (
     check_report_data,
     check_gpu,
     check_tdx_quote,
