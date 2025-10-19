@@ -2,9 +2,21 @@
   "name": "nearai-cloud-verifier",
   "version": "0.1.0",
   "description": "NEAR AI Cloud Verifier",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
+    "build": "tsc",
+    "chat": "tsx src/chat_verifier.ts",
+    "model": "tsx src/model_verifier.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "ethers": "^5.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.8.3"
   },
   "repository": {
     "type": "git",

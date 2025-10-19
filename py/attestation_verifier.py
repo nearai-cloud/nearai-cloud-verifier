@@ -187,7 +187,7 @@ def show_compose(attestation, intel_result):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Verify NEAR AI Cloud TEE Attestation")
-    parser.add_argument("--model", default="phala/deepseek-chat-v3-0324")
+    parser.add_argument("--model", default="deepseek-v3.1")
     args = parser.parse_args()
 
     request_nonce = secrets.token_hex(32)

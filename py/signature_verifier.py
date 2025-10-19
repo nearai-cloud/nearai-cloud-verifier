@@ -143,7 +143,7 @@ def non_streaming_example(model):
 def main():
     """Run example verification of streaming and non-streaming chat completions."""
     parser = argparse.ArgumentParser(description="Verify NEAR AI Cloud Signed Chat Responses")
-    parser.add_argument("--model", default="phala/deepseek-chat-v3-0324")
+    parser.add_argument("--model", default="deepseek-v3.1")
     args = parser.parse_args()
 
     if not API_KEY:
