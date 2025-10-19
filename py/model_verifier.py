@@ -7,6 +7,7 @@ import json
 import re
 import secrets
 from hashlib import sha256
+import dcap_qvl
 
 import requests
 
@@ -90,7 +91,7 @@ def check_gpu(attestation, request_nonce):
     }
 
 
-def check_tdx_quote(attestation):
+def check_tdx_quote_remote(attestation):
     """Verify Intel TDX quote via RedPill's verification service.
 
     Returns the full intel_result including decoded quote data.
@@ -105,6 +106,35 @@ def check_tdx_quote(attestation):
 
     return intel_result
 
+def check_tdx_quote_local(attestation):
+    """Verify Intel TDX quote via dcap-qvl verification service.
+
+    Returns the full intel_result including decoded quote data.
+    """
+    # intel_result = requests.post(PHALA_TDX_VERIFIER_API, json={"hex": attestation["intel_quote"]}, timeout=30).json()
+
+    # TODO: make check TDX quote work locally
+
+    # Create collateral object
+    collateral = dcap_qvl.QuoteCollateralV3.from_json(json.dumps(collateral_json))
+
+    # Verify the quote
+    now = int(time.time())
+    try:
+        result = dcap_qvl.verify(quote_data, collateral, now)
+        print(f"Verification successful! Status: {result.status}")
+        print(f"Advisory IDs: {result.advisory_ids}")
+    except ValueError as e:
+        print(f"Verification failed: {e}")
+
+    payload = intel_result.get("quote") or {}
+    verified = payload.get("verified")
+    print("Intel TDX quote verified:", verified)
+    message = payload.get("message") or intel_result.get("message")
+    if message:
+        print("Intel TDX verifier message:", message)
+
+    return intel_result
 
 def extract_sigstore_links(compose):
     """Extract all @sha256:xxx image digests and return Sigstore search links."""
