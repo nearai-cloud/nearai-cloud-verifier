@@ -92,7 +92,7 @@ def check_gpu(attestation, request_nonce):
 
 
 def check_tdx_quote_remote(attestation):
-    """Verify Intel TDX quote via RedPill's verification service.
+    """Verify Intel TDX quote via Phala Network's verification service.
 
     Returns the full intel_result including decoded quote data.
     """
