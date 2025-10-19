@@ -1,0 +1,25 @@
+{
+  "name": "nearai-cloud-verifier",
+  "version": "0.1.0",
+  "description": "NEAR AI Cloud Verifier",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nearai-cloud/nearai-cloud-verifier.git"
+  },
+  "keywords": [
+    "near",
+    "ai",
+    "cloud",
+    "verification"
+  ],
+  "author": "Robert Yan",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/nearai-cloud/nearai-cloud-verifier/issues"
+  },
+  "homepage": "https://github.com/nearai-cloud/nearai-cloud-verifier#readme"
+}
