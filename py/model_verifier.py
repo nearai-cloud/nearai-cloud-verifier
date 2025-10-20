@@ -3,25 +3,27 @@
 
 import argparse
 import base64
+import dcap_qvl
 import json
 import re
+import time
+import os
 import secrets
 from hashlib import sha256
-import dcap_qvl
 
 import requests
 
-API_BASE = "https://cloud-api.near.ai"
+API_BASE = os.environ.get("NEAR_AI_CLOUD_API_BASE", "https://cloud-api.near.ai")
 GPU_VERIFIER_API = "https://nras.attestation.nvidia.com/v3/attest/gpu"
 PHALA_TDX_VERIFIER_API = "https://cloud-api.phala.network/api/v1/attestations/verify"
 SIGSTORE_SEARCH_BASE = "https://search.sigstore.dev/?hash="
+NEAR_AI_CLOUD_API_KEY = os.environ.get("NEAR_AI_CLOUD_API_KEY", "")
 
 
 def fetch_report(model, nonce):
     """Fetch attestation report from the API."""
     url = f"{API_BASE}/v1/attestation/report?model={model}&nonce={nonce}"
-    return requests.get(url, timeout=30).json()
-
+    return requests.get(url, timeout=30, headers={"Authorization": f"Bearer {NEAR_AI_CLOUD_API_KEY}"}).json()
 
 def fetch_nvidia_verification(payload):
     """Submit GPU evidence to NVIDIA NRAS for verification."""
@@ -35,14 +37,15 @@ def base64url_decode_jwt_payload(jwt_token):
     return base64.urlsafe_b64decode(padded).decode()
 
 
-def check_report_data(attestation, request_nonce, intel_result):
+def check_report_data(attestation, request_nonce, intel_result, verify_model=False):
     """Verify that TDX report data binds the signing address and request nonce.
 
     Returns dict with verification results.
     """
     report_data_hex = intel_result["quote"]["body"]["reportdata"]
     report_data = bytes.fromhex(report_data_hex.removeprefix("0x"))
-    signing_address = attestation["signing_address"]
+    # If verify_model is False, set the signing address to the zero address
+    signing_address = attestation["signing_address"] if verify_model else "0x0000000000000000000000000000000000000000000000000000000000000000"
     signing_algo = attestation.get("signing_algo", "ecdsa").lower()
 
     # Parse signing address bytes based on algorithm
@@ -111,9 +114,11 @@ def check_tdx_quote_local(attestation):
 
     Returns the full intel_result including decoded quote data.
     """
-    # intel_result = requests.post(PHALA_TDX_VERIFIER_API, json={"hex": attestation["intel_quote"]}, timeout=30).json()
+    intel_quote = attestation["intel_quote"]
 
-    # TODO: make check TDX quote work locally
+    # get quote collateral
+    proof_response = requests.post('https://proof.t16z.com/api/upload', data={'hex': intel_quote}).json()
+    collateral_json = proof_response.get("quote_collateral")
 
     # Create collateral object
     collateral = dcap_qvl.QuoteCollateralV3.from_json(json.dumps(collateral_json))
@@ -121,19 +126,28 @@ def check_tdx_quote_local(attestation):
     # Verify the quote
     now = int(time.time())
     try:
-        result = dcap_qvl.verify(quote_data, collateral, now)
+        # Convert hex string to bytes
+        intel_quote_bytes = bytes.fromhex(intel_quote)
+        result = dcap_qvl.verify(intel_quote_bytes, collateral, now)
         print(f"Verification successful! Status: {result.status}")
         print(f"Advisory IDs: {result.advisory_ids}")
     except ValueError as e:
         print(f"Verification failed: {e}")
+        return None
 
-    payload = intel_result.get("quote") or {}
-    verified = payload.get("verified")
-    print("Intel TDX quote verified:", verified)
-    message = payload.get("message") or intel_result.get("message")
-    if message:
-        print("Intel TDX verifier message:", message)
-
+    # Create a result structure similar to the remote verification
+    intel_result = {
+        "quote": {
+            "body": {
+                "reportdata": result.report_data.hex() if hasattr(result, 'report_data') else "",
+                "mrconfig": result.mr_config.hex() if hasattr(result, 'mr_config') else ""
+            }
+        },
+        "verified": result.status == "OK" if hasattr(result, 'status') else False
+    }
+    
+    print("Intel TDX quote verified:", intel_result["verified"])
+    
     return intel_result
 
 def extract_sigstore_links(compose):
@@ -215,6 +229,28 @@ def show_compose(attestation, intel_result):
     print("mr_config matches compose hash:", mr_config.lower().startswith(expected_mr_config.lower()))
 
 
+def verify_attestation(attestation, request_nonce, verify_model=False):
+    """Verify the attestation."""
+    print("\n🔐 Attestation")
+    print(attestation)
+
+    if verify_model:
+        print("\nSigning address:", attestation["signing_address"])
+        print("Request nonce:", request_nonce)
+
+    print("\n🔐 Intel TDX quote")
+    intel_result = check_tdx_quote_local(attestation)
+
+    print("\n🔐 TDX report data")
+    check_report_data(attestation, request_nonce, intel_result)
+
+    if verify_model:
+        print("\n🔐 GPU attestation")
+        check_gpu(attestation, request_nonce)
+
+    show_compose(attestation, intel_result)
+    show_sigstore_provenance(attestation)
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Verify NEAR AI Cloud TEE Attestation")
     parser.add_argument("--model", default="deepseek-v3.1")
@@ -224,23 +260,16 @@ def main() -> None:
     report = fetch_report(args.model, request_nonce)
 
     # Handle both single attestation and multi-node response formats
-    attestation = report.get("all_attestations", [report])[0] if report.get("all_attestations") else report
+    model_attestations = report.get("all_attestations", [report]) if report.get("all_attestations") else [report]
 
-    print("\nSigning address:", attestation["signing_address"])
-    print("Request nonce:", request_nonce)
+    print("\n🔐 Model attestations")
+    for model_attestation in model_attestations:
+        verify_attestation(model_attestation, request_nonce, verify_model=True)
 
-    print("\n🔐 Intel TDX quote")
-    intel_result = check_tdx_quote(attestation)
-
-    print("\n🔐 TDX report data")
-    check_report_data(attestation, request_nonce, intel_result)
-
-    print("\n🔐 GPU attestation")
-    check_gpu(attestation, request_nonce)
-
-    show_compose(attestation, intel_result)
-    show_sigstore_provenance(attestation)
-
+    print("\n🔐 Gateway attestation")
+    gateway_attestation = report.get("gateway_attestation")
+    if gateway_attestation:
+        verify_attestation(gateway_attestation, request_nonce, verify_model=False)
 
 if __name__ == "__main__":
     main()
