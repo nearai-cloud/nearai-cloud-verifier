@@ -10,17 +10,15 @@ import * as http from 'http';
 import { URL } from 'url';
 import { ethers } from 'ethers';
 import {
-  fetchReport,
   checkReportData,
   checkGpu,
   checkTdxQuote,
   showSigstoreProvenance,
-  AttestationReport,
-  IntelResult
+  AttestationReport
 } from './model_verifier';
 
 const API_KEY = process.env.API_KEY || '';
-const BASE_URL = 'https://cloud-api.near.ai';
+const BASE_URL = process.env.BASE_URL || 'https://cloud-api.near.ai';
 
 interface SignaturePayload {
   text: string;
@@ -99,8 +97,8 @@ function sha256Text(text: string): string {
 /**
  * Fetch signature for a chat completion
  */
-async function fetchSignature(chatId: string, model: string): Promise<SignaturePayload> {
-  const url = `${BASE_URL}/v1/signature/${chatId}?model=${encodeURIComponent(model)}`;
+async function fetchSignature(chatId: string, model: string, signingAlgo: string = 'ecdsa'): Promise<SignaturePayload> {
+  const url = `${BASE_URL}/v1/signature/${chatId}?model=${encodeURIComponent(model)}&signing_algo=${encodeURIComponent(signingAlgo)}`;
   const headers = { Authorization: `Bearer ${API_KEY}` };
   return await makeRequest(url, { headers });
 }
@@ -109,9 +107,7 @@ async function fetchSignature(chatId: string, model: string): Promise<SignatureP
  * Recover Ethereum address from ECDSA signature
  */
 function recoverSigner(text: string, signature: string): string {
-  const messageHash = ethers.utils.hashMessage(text);
-  const recoveredAddress = ethers.utils.recoverAddress(messageHash, signature);
-  return recoveredAddress;
+  return ethers.utils.verifyMessage(text, signature);
 }
 
 /**
@@ -187,12 +183,12 @@ async function streamingExample(model: string): Promise<void> {
   };
   
   const bodyJson = JSON.stringify(body);
-  
+
   return new Promise((resolve, reject) => {
     const urlObj = new URL(`${BASE_URL}/v1/chat/completions`);
     const isHttps = urlObj.protocol === 'https:';
     const client = isHttps ? https : http;
-    
+
     const requestOptions = {
       hostname: urlObj.hostname,
       port: urlObj.port || (isHttps ? 443 : 80),
