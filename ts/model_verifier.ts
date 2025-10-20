@@ -9,7 +9,7 @@ import * as crypto from 'crypto';
 import {
   js_verify,
   js_get_collateral,
-} from "./pkg/node/dcap-qvl-node";
+} from "@phala/dcap-qvl-node";
 
 const API_BASE = process.env.BASE_URL || "https://cloud-api.near.ai";
 const GPU_VERIFIER_API = "https://nras.attestation.nvidia.com/v3/attest/gpu";
@@ -110,13 +110,23 @@ async function fetchReport(model: string, nonce: string): Promise<AttestationRep
  * Submit GPU evidence to NVIDIA NRAS for verification
  */
 async function fetchNvidiaVerification(payload: NvidiaPayload): Promise<any> {
-  return await makeRequest(GPU_VERIFIER_API, {
+  const res = await fetch(GPU_VERIFIER_API, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`NRAS ${res.status}: ${text}`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 /**
@@ -190,9 +200,6 @@ async function checkGpu(attestation: AttestationReport, requestNonce: string): P
 }
 
 async function checkTdxQuote(attestation: AttestationReport): Promise<IntelResult> {
-  console.log('Checking Intel TDX quote via NEAR AI Cloud\'s verification service');
-  console.log('Intel TDX quote:', attestation.intel_quote);
-
   try {
     const rawQuote = Buffer.from(attestation.intel_quote, 'hex');
     const now = BigInt(Math.floor(Date.now() / 1000));
@@ -202,7 +209,7 @@ async function checkTdxQuote(attestation: AttestationReport): Promise<IntelResul
 
     // Log full raw result similar to Python's to_json()
     try {
-      console.log("TDX quote verification result:", JSON.stringify(rawResult));
+      console.log("TDX quote verification result:", JSON.stringify(rawResult, null, 2));
     } catch (_) {
       console.log("TDX quote verification result:", rawResult);
     }
@@ -279,7 +286,10 @@ async function checkSigstoreLinks(links: string[]): Promise<Array<[string, boole
   
   for (const link of links) {
     try {
-      const response = await makeRequest(link, { method: 'HEAD' });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const response = await fetch(link, { method: 'HEAD', redirect: 'follow', signal: controller.signal });
+      clearTimeout(timeoutId);
       const accessible = response.status < 400;
       results.push([link, accessible, response.status]);
     } catch (error) {
