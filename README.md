@@ -308,12 +308,11 @@ The verifier filters `model_attestations` to find the entry matching the signatu
 
 - ✅ NVIDIA GPU vendor (H100/H200 TEE correctness)
 - ✅ Intel CPU vendor (TDX implementation)
-- ✅ NEAR AI Cloud (model deployment integrity)
 - ✅ Open source code (auditable on GitHub)
 
 ### You Do NOT Need to Trust
 
-- ❌ RedPill operators
+- ❌ Model operators
 - ❌ Cloud provider (AWS, GCP, Azure)
 - ❌ System administrators
 - ❌ Other users on same hardware
