@@ -1,12 +1,13 @@
-# nearai-cloud-verifier
-NEAR AI Cloud Verifier
+# NEAR AI Cloud Verifier
 
 **Cryptographic Verification Tools for NEAR AI Cloud TEE-Protected AI**
 
-Python tools for validating NEAR AI Cloud attestation reports and response signatures. These verifiers provide cryptographic proof that your AI requests are processed in genuine Trusted Execution Environments (TEE) with hardware-enforced privacy.
+Python and TypeScript tools for validating NEAR AI Cloud attestation reports and response signatures. These verifiers provide cryptographic proof that your AI requests are processed in genuine Trusted Execution Environments (TEE) with hardware-enforced privacy.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8+-blue.svg)](https://www.typescriptlang.org/)
 
 ## 🌟 Features
 
@@ -30,7 +31,7 @@ Python tools for validating NEAR AI Cloud attestation reports and response signa
 - TypeScript 5.8+
 - `ethers` for cryptographic operations
 - `tsx` for TypeScript execution
-- `dcap-qvl` for verifying TDX quotes
+- `dcap-qvl-node` for verifying TDX quotes
 
 ## 🚀 Quick Start
 
@@ -69,7 +70,7 @@ export API_KEY=sk-your-api-key-here
 python3 py/chat_verifier.py --model deepseek-v3.1
 
 # TypeScript
-npm run chat -- --model deepseek-v3.1
+pnpm run chat -- --model deepseek-v3.1
 ```
 
 ## 🔐 Model Verifier
@@ -308,12 +309,11 @@ The verifier filters `model_attestations` to find the entry matching the signatu
 
 - ✅ NVIDIA GPU vendor (H100/H200 TEE correctness)
 - ✅ Intel CPU vendor (TDX implementation)
-- ✅ NEAR AI Cloud (model deployment integrity)
 - ✅ Open source code (auditable on GitHub)
 
 ### You Do NOT Need to Trust
 
-- ❌ RedPill operators
+- ❌ Model operators
 - ❌ Cloud provider (AWS, GCP, Azure)
 - ❌ System administrators
 - ❌ Other users on same hardware
@@ -334,13 +334,13 @@ The verifier filters `model_attestations` to find the entry matching the signatu
 python3 py/model_verifier.py
 
 # Python - Verify specific model
-python3 py/model_verifier.py --model gpt-oss-120b
+python3 py/model_verifier.py --model deepseek-3.1
 
 # TypeScript - Verify default model
-npm run model
+pnpm run model
 
 # TypeScript - Verify specific model
-npm run model -- --model gpt-oss-120b
+pnpm run model -- --model deepseek-3.1
 ```
 
 ### Chat Verification with Custom Model
@@ -352,7 +352,7 @@ export API_KEY=sk-your-api-key-here
 python3 py/chat_verifier.py --model deepseek-v3.1
 
 # TypeScript
-npm run chat -- --model deepseek-v3.1
+pnpm run chat -- --model deepseek-v3.1
 ```
 
 ### Programmatic Usage
@@ -428,8 +428,8 @@ python3 py/model_verifier.py --model deepseek-v3.1
 python3 py/chat_verifier.py --model deepseek-v3.1
 
 # Test TypeScript verifiers
-npm run model -- --model deepseek-v3.1
-npm run chat -- --model deepseek-v3.1
+pnpm run model -- --model deepseek-v3.1
+pnpm run chat -- --model deepseek-v3.1
 ```
 
 5. Commit your changes (`git commit -m 'Add amazing feature'`)
