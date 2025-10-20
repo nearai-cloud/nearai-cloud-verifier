@@ -19,7 +19,7 @@ from model_verifier import (
 )
 
 API_KEY = os.environ.get("API_KEY", "")
-BASE_URL = "https://cloud-api.near.ai"
+BASE_URL = os.environ.get("BASE_URL", "https://cloud-api.near.ai")
 
 
 def sha256_text(text):
