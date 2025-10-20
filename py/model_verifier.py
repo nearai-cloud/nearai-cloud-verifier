@@ -48,9 +48,6 @@ def check_report_data(attestation, request_nonce, intel_result, verify_model=Fal
     signing_address = attestation["signing_address"] if verify_model else "0x0000000000000000000000000000000000000000000000000000000000000000"
     signing_algo = attestation.get("signing_algo", "ecdsa").lower()
 
-    print("signing address:", signing_address)
-    print("signing algo:", signing_algo)
-
     # Parse signing address bytes based on algorithm
     if signing_algo == "ecdsa":
         addr_hex = signing_address.removeprefix("0x")
