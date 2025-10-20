@@ -48,7 +48,7 @@ npm install -g pnpm
 pnpm install
 ```
 
-### Attestation Verification
+### Model Verification
 
 ```bash
 export API_KEY=sk-your-api-key-here
@@ -60,7 +60,7 @@ python3 py/model_verifier.py --model deepseek-v3.1
 pnpm run model -- --model deepseek-v3.1
 ```
 
-### Signature Verification
+### Chat Verification
 
 ```bash
 export API_KEY=sk-your-api-key-here
@@ -176,14 +176,14 @@ Checking Sigstore accessibility for container images...
 
 ### What It Verifies
 
-✅ **GPU TEE Measurements** - Proves genuine NVIDIA H100/H200 TEE
-✅ **Model Hash** - Verifies exact model version
-✅ **Code Hash** - Confirms inference code integrity
-✅ **Nonce Freshness** - Prevents replay attacks
-✅ **Cryptographic Binding** - Signing key bound to hardware
-✅ **Container Provenance** - Verifies build supply chain
+- ✅ **GPU TEE Measurements** - Proves genuine NVIDIA H100/H200 TEE
+- ✅ **Model Hash** - Verifies exact model version
+- ✅ **Code Hash** - Confirms inference code integrity
+- ✅ **Nonce Freshness** - Prevents replay attacks
+- ✅ **Cryptographic Binding** - Signing key bound to hardware
+- ✅ **Container Provenance** - Verifies build supply chain
 
-## 🔑 Signature Verifier
+## 🔑 Chat Verifier
 
 Fetches chat completions (streaming and non-streaming), verifies ECDSA signatures, and validates attestations:
 
@@ -224,12 +224,12 @@ pnpm run model -- [--model MODEL_NAME]
 
 ### What It Verifies
 
-✅ **Request Body Hash** - Matches server-computed hash
-✅ **Response Text Hash** - Matches server-computed hash
-✅ **ECDSA Signature** - Valid and recovers to claimed signing address
-✅ **Signing Address Binding** - Bound to hardware via TDX report data
-✅ **GPU Attestation** - Passes NVIDIA verification
-✅ **Intel TDX Quote** - Valid CPU TEE measurements
+- ✅ **Request Body Hash** - Matches server-computed hash
+- ✅ **Response Text Hash** - Matches server-computed hash
+- ✅ **ECDSA Signature** - Valid and recovers to claimed signing address
+- ✅ **Signing Address Binding** - Bound to hardware via TDX report data
+- ✅ **GPU Attestation** - Passes NVIDIA verification
+- ✅ **Intel TDX Quote** - Valid CPU TEE measurements
 
 
 ## 📦 Sigstore Provenance
@@ -320,10 +320,10 @@ The verifier filters `model_attestations` to find the entry matching the signatu
 
 ### Cryptographic Guarantees
 
-✅ **Hardware-Enforced Privacy** - Data never leaves TEE in plaintext
-✅ **Verifiable Execution** - Cryptographic proof of code integrity
-✅ **Tamper-Proof** - Cannot be modified by operators or admins
-✅ **Auditable** - Full attestation reports for every request
+- ✅ **Hardware-Enforced Privacy** - Data never leaves TEE in plaintext
+- ✅ **Verifiable Execution** - Cryptographic proof of code integrity
+- ✅ **Tamper-Proof** - Cannot be modified by operators or admins
+- ✅ **Auditable** - Full attestation reports for every request
 
 ## 📖 Usage Examples
 
@@ -343,7 +343,7 @@ npm run model
 npm run model -- --model gpt-oss-120b
 ```
 
-### Signature Verification with Custom Model
+### Chat Verification with Custom Model
 
 ```bash
 export API_KEY=sk-your-api-key-here
