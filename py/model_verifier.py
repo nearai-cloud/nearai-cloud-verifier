@@ -259,8 +259,7 @@ async def main() -> None:
     if gateway_attestation:
         await verify_attestation(gateway_attestation, request_nonce, verify_model=False)
 
-    # model_attestations = report.get("model_attestations", [])
-    model_attestations = report.get("all_attestations", [report])
+    model_attestations = report.get("model_attestations", [])
     index = 0
     for model_attestation in model_attestations:
         index += 1
