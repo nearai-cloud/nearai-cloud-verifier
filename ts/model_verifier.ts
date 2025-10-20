@@ -9,11 +9,10 @@ import * as crypto from 'crypto';
 import {
   js_verify,
   js_get_collateral,
-} from "../pkg/node/dcap-qvl-node";
+} from "./pkg/node/dcap-qvl-node";
 
-const API_BASE = "https://925329ea381059053dde74a7325ad43ef35ee179-3000.dstack-pha-prod8.phala.network"; // "https://cloud-api.near.ai";
+const API_BASE = process.env.BASE_URL || "https://cloud-api.near.ai";
 const GPU_VERIFIER_API = "https://nras.attestation.nvidia.com/v3/attest/gpu";
-const PHALA_TDX_VERIFIER_API = "https://cloud-api.phala.network/api/v1/attestations/verify";
 const SIGSTORE_SEARCH_BASE = "https://search.sigstore.dev/?hash=";
 
 interface AttestationReport {
@@ -72,11 +71,10 @@ async function makeRequest(url: string, options: any = {}): Promise<any> {
     const response = await fetch(url, {
       method: options.method || 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NEAR_AI_CLOUD_API_KEY}`,
-        ...options.headers,
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.headers || {}),
       },
-      body: options.body ? JSON.stringify(options.body) : undefined,
+      body: options.body ? (typeof options.body === 'string' ? options.body : JSON.stringify(options.body)) : undefined,
       signal: controller.signal,
     });
 
@@ -101,7 +99,11 @@ async function makeRequest(url: string, options: any = {}): Promise<any> {
  */
 async function fetchReport(model: string, nonce: string): Promise<AttestationReport> {
   const url = `${API_BASE}/v1/attestation/report?model=${encodeURIComponent(model)}&nonce=${nonce}`;
-  return await makeRequest(url);
+  return await makeRequest(url, {
+    headers: {
+      'Authorization': `Bearer ${process.env.API_KEY || ''}`,
+    }
+  });
 }
 
 /**
@@ -129,10 +131,10 @@ function base64urlDecodeJwtPayload(jwtToken: string): string {
 /**
  * Verify that TDX report data binds the signing address and request nonce
  */
-function checkReportData(attestation: AttestationReport, requestNonce: string, intelResult: IntelResult): ReportDataResult {
+function checkReportData(attestation: AttestationReport, requestNonce: string, intelResult: IntelResult, verifyModel: boolean = false): ReportDataResult {
   const reportDataHex = intelResult.quote.body.reportdata;
   const reportData = Buffer.from(reportDataHex.replace('0x', ''), 'hex');
-  const signingAddress = attestation.signing_address;
+  const signingAddress = verifyModel ? attestation.signing_address : '0x' + '0'.repeat(64);
   const signingAlgo = (attestation.signing_algo || 'ecdsa').toLowerCase();
 
   // Parse signing address bytes based on algorithm
@@ -152,7 +154,13 @@ function checkReportData(attestation: AttestationReport, requestNonce: string, i
 
   console.log('Signing algorithm:', signingAlgo);
   console.log('Report data binds signing address:', bindsAddress);
+  if (!bindsAddress) {
+    console.log('Report data binds signing address:', 'expected:', signingAddressBytes.toString('hex'), 'actual:', embeddedAddress.toString('hex'));
+  }
   console.log('Report data embeds request nonce:', embedsNonce);
+  if (!embedsNonce) {
+    console.log('Report data embeds request nonce:', 'expected:', requestNonce, 'actual:', embeddedNonce.toString('hex'));
+  }
 
   return {
     binds_address: bindsAddress,
@@ -181,87 +189,57 @@ async function checkGpu(attestation: AttestationReport, requestNonce: string): P
   };
 }
 
-/**
- * Verify Intel TDX quote via Phala's verification service
- */
-async function checkTdxQuoteRemote(attestation: AttestationReport): Promise<IntelResult> {
-
+async function checkTdxQuote(attestation: AttestationReport): Promise<IntelResult> {
   console.log('Checking Intel TDX quote via NEAR AI Cloud\'s verification service');
   console.log('Intel TDX quote:', attestation.intel_quote);
-
-  const intelResult: IntelResult = await makeRequest(PHALA_TDX_VERIFIER_API, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ hex: attestation.intel_quote })
-  });
-
-  const payload = intelResult.quote || {};
-  const verified = payload.verified;
-
-  console.log('Intel TDX quote verified:', verified);
-  const message = payload.message || intelResult.message;
-  if (message) {
-    console.log('Intel TDX verifier message:', message);
-  }
-
-  return intelResult;
-}
-
-
-async function checkTdxQuoteLocal(attestation: AttestationReport): Promise<IntelResult> {
-
-  console.log('Checking Intel TDX quote via NEAR AI Cloud\'s verification service');
-  console.log('Intel TDX quote:', attestation.intel_quote);
-
-  // const intelResult: IntelResult = await makeRequest(PHALA_TDX_VERIFIER_API, {
-  //   method: 'POST',
-  //   headers: {
-  //     'Content-Type': 'application/json'
-  //   },
-  //   body: JSON.stringify({ hex: attestation.intel_quote })
-  // });
-
-  // const payload = intelResult.quote || {};
-  // const verified = payload.verified;
-
-  // console.log('Intel TDX quote verified:', verified);
-  // const message = payload.message || intelResult.message;
-  // if (message) {
-  //   console.log('Intel TDX verifier message:', message);
-  // }
-
-  // return intelResult;
 
   try {
     const rawQuote = Buffer.from(attestation.intel_quote, 'hex');
-    // Current timestamp
     const now = BigInt(Math.floor(Date.now() / 1000));
+    const pccsUrl = "https://api.trustedservices.intel.com/tdx/certification/v4";
+    const quoteCollateral = await js_get_collateral(pccsUrl, rawQuote);
+    const rawResult: any = js_verify(rawQuote, quoteCollateral, now);
 
-    // Call the js_verify function
-    let pccs_url = "https://pccs.phala.network/tdx/certification/v4";
-    const quoteCollateral = await js_get_collateral(pccs_url, rawQuote);
-    const intelResult = js_verify(rawQuote, quoteCollateral, now);
-    console.log("Verification Result:", intelResult);
-
-    const payload = intelResult.quote || {};
-    const verified = payload.verified;
-
-    console.log('Intel TDX quote verified:', verified);
-    const message = payload.message || intelResult.message;
-    if (message) {
-      console.log('Intel TDX verifier message:', message);
+    // Log full raw result similar to Python's to_json()
+    try {
+      console.log("TDX quote verification result:", JSON.stringify(rawResult));
+    } catch (_) {
+      console.log("TDX quote verification result:", rawResult);
     }
-  
-    return intelResult;
+
+    // Extract report_data and mr_config_id if present (Python parity)
+    const td10 = rawResult && rawResult.report && rawResult.report.TD10 ? rawResult.report.TD10 : {};
+    const reportData: string = td10.report_data || '';
+    const mrConfig: string = td10.mr_config_id || '';
+
+    // Determine verified status akin to Python's result.status == "UpToDate"
+    const status: string | undefined = typeof rawResult?.status === 'string' ? rawResult.status : undefined;
+    const verifiedFromStatus = status ? status === 'UpToDate' : undefined;
+    const verified = verifiedFromStatus ?? Boolean(rawResult?.quote?.verified);
+
+    const mapped: IntelResult = {
+      quote: {
+        body: {
+          reportdata: reportData,
+          mrconfig: mrConfig,
+        },
+        verified,
+        message: rawResult?.message,
+      },
+      message: rawResult?.message,
+    };
+
+    console.log('Intel TDX quote verified:', mapped.quote.verified);
+    if (mapped.message) {
+      console.log('Intel TDX verifier message:', mapped.message);
+    }
+
+    return mapped;
   } catch (error) {
     console.error("Verification failed:", error);
     throw error;
   }
 }
-
-const checkTdxQuote = checkTdxQuoteLocal;
 
 /**
  * Extract all @sha256:xxx image digests and return Sigstore search links
@@ -368,8 +346,34 @@ function showCompose(attestation: AttestationReport, intelResult: IntelResult): 
 
   const mrConfig = intelResult.quote.body.mrconfig;
   console.log('mr_config (from verified quote):', mrConfig);
-  const expectedMrConfig = '0x01' + composeHash;
+  const expectedMrConfig = '01' + composeHash;
   console.log('mr_config matches compose hash:', mrConfig.toLowerCase().startsWith(expectedMrConfig.toLowerCase()));
+}
+
+/**
+ * Verify a single attestation
+ */
+async function verifyAttestation(attestation: AttestationReport, requestNonce: string, verifyModel: boolean): Promise<void> {
+  console.log('🔐 Attestation');
+
+  console.log('Request nonce:', requestNonce);
+  if (verifyModel) {
+    console.log('\nSigning address:', attestation.signing_address);
+  }
+
+  console.log('\n🔐 Intel TDX quote');
+  const intelResult = await checkTdxQuote(attestation);
+
+  console.log('\n🔐 TDX report data');
+  checkReportData(attestation, requestNonce, intelResult, verifyModel);
+
+  if (verifyModel) {
+    console.log('\n🔐 GPU attestation');
+    await checkGpu(attestation, requestNonce);
+  }
+
+  showCompose(attestation, intelResult);
+  await showSigstoreProvenance(attestation);
 }
 
 /**
@@ -378,68 +382,42 @@ function showCompose(attestation: AttestationReport, intelResult: IntelResult): 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const modelIndex = args.indexOf('--model');
-  const model = modelIndex !== -1 && args[modelIndex + 1] ? args[modelIndex + 1] : 'gpt-oss-120b';
+  const model = modelIndex !== -1 && args[modelIndex + 1] ? args[modelIndex + 1] : 'deepseek-v3.1';
 
 
-  if (!process.env.NEAR_AI_CLOUD_API_KEY) {
-    console.log('Error: NEAR_AI_CLOUD_API_KEY environment variable is required');
-    console.log('Set it with: export NEAR_AI_CLOUD_API_KEY=your-api-key');
+  if (!process.env.API_KEY) {
+    console.log('Error: API_KEY environment variable is required');
+    console.log('Set it with: export API_KEY=your-api-key');
     return;
   }
 
   const requestNonce = crypto.randomBytes(32).toString('hex');
   const report = await fetchReport(model, requestNonce);
 
-  if (!report.model_attestations) {
-    console.log('No model attestations found');
-    return;
-  }
-
-  // Verify model attestations
-  for (const modelAttestation of report.model_attestations) {
-    console.log('\n🔐 Model attestation');
-    const intelResultModel = await checkTdxQuoteLocal(modelAttestation);
-    console.log('\n🔐 TDX report data');
-    checkReportData(modelAttestation, requestNonce, intelResultModel);
-    console.log('\n🔐 GPU attestation');
-    await checkGpu(modelAttestation, requestNonce);
-    showCompose(modelAttestation, intelResultModel);
-    await showSigstoreProvenance(modelAttestation);
-  }
-
-
   if (!report.gateway_attestation) {
     console.log('No gateway attestation found');
     return;
   }
 
-  console.log('\n🔐 Gateway attestation');
-  const intelResultGateway = await checkTdxQuoteLocal(report.gateway_attestation);
-  console.log('\n🔐 TDX report data');
-  checkReportData(report.gateway_attestation, requestNonce, intelResultGateway);
-  console.log('\n🔐 GPU attestation');
-  await checkGpu(report.gateway_attestation, requestNonce);
-  showCompose(report.gateway_attestation, intelResultGateway);
-  await showSigstoreProvenance(report.gateway_attestation);
+  console.log('========================================');
+  console.log('🔐 Gateway attestation');
+  console.log('========================================');
+  await verifyAttestation(report.gateway_attestation, requestNonce, false);
 
+  // Verify model attestations
+  if (!report.model_attestations) {
+    console.log('No model attestations found');
+    return;
+  }
 
-  // // Handle both single attestation and multi-node response formats
-  // const attestation = report.all_attestations ? report.all_attestations[0] : report;
-
-  // console.log('\nSigning address:', attestation.signing_address);
-  // console.log('Request nonce:', requestNonce);
-
-  // console.log('\n🔐 Intel TDX quote');
-  // const intelResult = await checkTdxQuoteLocal(attestation);
-
-  // console.log('\n🔐 TDX report data');
-  // checkReportData(attestation, requestNonce, intelResult);
-
-  // console.log('\n🔐 GPU attestation');
-  // await checkGpu(attestation, requestNonce);
-
-  // showCompose(attestation, intelResult);
-  // await showSigstoreProvenance(attestation);
+  let idx = 0;
+  for (const modelAttestation of report.model_attestations) {
+    idx += 1;
+    console.log('\n\n\n========================================');
+    console.log(`🔐 Model attestations: (#${idx})`);
+    console.log('========================================');
+    await verifyAttestation(modelAttestation, requestNonce, true);
+  }
 }
 
 // Run the main function if this file is executed directly
@@ -452,6 +430,7 @@ export {
   checkTdxQuote,
   checkReportData,
   checkGpu,
+  verifyAttestation,
   showSigstoreProvenance,
   showCompose,
   AttestationReport,

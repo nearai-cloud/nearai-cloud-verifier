@@ -1,0 +1,20 @@
+{
+  "name": "dcap-qvl",
+  "collaborators": [
+    "Kevin Wang <wy721@qq.com>"
+  ],
+  "description": "This crate implements the quote verification logic for DCAP (Data Center Attestation Primitives) in pure Rust.",
+  "version": "0.3.3",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Phala-Network/dcap-qvl"
+  },
+  "files": [
+    "dcap-qvl-node_bg.wasm",
+    "dcap-qvl-node.js",
+    "dcap-qvl-node.d.ts"
+  ],
+  "main": "dcap-qvl-node.js",
+  "types": "dcap-qvl-node.d.ts"
+}
