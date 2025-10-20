@@ -80,14 +80,14 @@ pnpm run chat -- --model deepseek-v3.1
 Generates a fresh nonce, requests a new attestation, and verifies:
 - **GPU attestation**: Submits GPU evidence payload to NVIDIA NRAS and verifies the nonce matches
 - **TDX report data**: Validates that report data binds the signing key (ECDSA or Ed25519) and nonce
-- **Intel TDX quote**: Verifies TDX quote with `dcap-qvl` library
+- **Intel TDX quote**: Verifies TDX quote with [`dcap-qvl`](https://github.com/Phala-Network/dcap-qvl) library
 - **Compose manifest**: Displays Docker compose manifest and verifies it matches the mr_config measurement
 
 ### Gateway Attestations
 
 The model verifier also verifies the private inference gateway for
 - **TDX report data**: Validates that report data includes the nonce in request
-- **Intel TDX quote**: Verifies TDX quote with `dcap-qvl` library
+- **Intel TDX quote**: Verifies TDX quote with [`dcap-qvl`](https://github.com/Phala-Network/dcap-qvl) library
 - **Compose manifest**: Displays Docker compose manifest and verifies it matches the mr_config measurement
 
 
