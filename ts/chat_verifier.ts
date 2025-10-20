@@ -107,7 +107,6 @@ async function fetchSignature(chatId: string, model: string, signingAlgo: string
  * Recover Ethereum address from ECDSA signature
  */
 function recoverSigner(text: string, signature: string): string {
-  // Match Python's encode_defunct (EIP-191 personal_sign)
   return ethers.utils.verifyMessage(text, signature);
 }
 
