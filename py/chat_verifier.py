@@ -72,13 +72,6 @@ async def check_attestation(signing_address, attestation, nonce):
 async def verify_chat(chat_id, request_body, response_text, label, model):
     """Verify a chat completion signature and attestation."""
 
-    print(f"Chat ID: {chat_id}")
-    print(f"Request body: {request_body}")
-    print(f"Response text: {response_text}")
-    print(f"Label: {label}")
-    print(f"Model: {model}")
-    print("========================================")
-
     request_hash = sha256_text(request_body)
     response_hash = sha256_text(response_text)
 

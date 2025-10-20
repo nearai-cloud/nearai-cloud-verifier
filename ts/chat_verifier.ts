@@ -149,13 +149,6 @@ async function checkAttestation(signingAddress: string, attestation: Attestation
  * Verify a chat completion signature and attestation
  */
 async function verifyChat(chatId: string, requestBody: string, responseText: string, label: string, model: string): Promise<void> {
-  console.log(`Chat ID: ${chatId}`);
-  console.log(`Request body: ${requestBody}`);
-  console.log(`Response text: ${responseText}`);
-  console.log(`Label: ${label}`);
-  console.log(`Model: ${model}`);
-  console.log('========================================');
-
   const requestHash = sha256Text(requestBody);
   const responseHash = sha256Text(responseText);
 
