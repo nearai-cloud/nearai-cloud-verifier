@@ -21,7 +21,7 @@ Python tools for validating NEAR AI Cloud attestation reports and response signa
 
 ### Python
 - Python 3.10+
-- `requests`, `eth-account`
+- `requests`, `eth-account`, `dcap-qvl`
 - NEAR AI Cloud API key from [cloud.near.ai](https://cloud.near.ai) (for signature verifier only)
 
 ### TypeScript
@@ -29,6 +29,7 @@ Python tools for validating NEAR AI Cloud attestation reports and response signa
 - TypeScript 5.8+
 - `ethers` for cryptographic operations
 - `tsx` for TypeScript execution
+- `dcap-qvl` for verifying TDX quotes
 - NEAR AI Cloud API key from [cloud.near.ai](https://cloud.near.ai) (for signature verifier only)
 
 ## 🚀 Quick Start
@@ -40,7 +41,7 @@ git clone https://github.com/nearai-cloud/nearai-cloud-verifier.git
 cd nearai-cloud-verifier
 
 # For Python
-pip install requests eth-account
+pip install -r requirements.txt
 
 # For TypeScript
 npm install

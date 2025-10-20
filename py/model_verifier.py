@@ -62,8 +62,8 @@ def check_report_data(attestation, request_nonce, intel_result, verify_model=Fal
     embeds_nonce = embedded_nonce.hex() == request_nonce
 
     print("Signing algorithm:", signing_algo)
-    print("Report data binds signing address:", binds_address)
-    print("Report data embeds request nonce:", embeds_nonce)
+    print("Report data binds signing address:", binds_address, "expected:", signing_address_bytes.hex(), "actual:", embedded_address.hex())
+    print("Report data embeds request nonce:", embeds_nonce, "expected:", request_nonce, "actual:", embedded_nonce.hex())
 
     return {
         "binds_address": binds_address,
@@ -129,23 +129,39 @@ def check_tdx_quote_local(attestation):
         # Convert hex string to bytes
         intel_quote_bytes = bytes.fromhex(intel_quote)
         result = dcap_qvl.verify(intel_quote_bytes, collateral, now)
+
+        print("TDX quote verification result:", result.to_json())
+        result_json = json.loads(result.to_json())
+
         print(f"Verification successful! Status: {result.status}")
         print(f"Advisory IDs: {result.advisory_ids}")
     except ValueError as e:
         print(f"Verification failed: {e}")
         return None
 
+    # Extract report_data and mr_config from the verification result
+    report_data = ""
+    mr_config = ""
+    
+    if 'report' in result_json and 'TD10' in result_json['report']:
+        td10 = result_json['report']['TD10']
+        report_data = td10.get('report_data', "")
+        mr_config = td10.get('mr_config_id', "")
+
+    print("Report data:", report_data)
+    print("MR config:", mr_config)
+
     # Create a result structure similar to the remote verification
     intel_result = {
         "quote": {
             "body": {
-                "reportdata": result.report_data.hex() if hasattr(result, 'report_data') else "",
-                "mrconfig": result.mr_config.hex() if hasattr(result, 'mr_config') else ""
+                "reportdata": report_data,
+                "mrconfig": mr_config
             }
         },
-        "verified": result.status == "OK" if hasattr(result, 'status') else False
+        "verified": result.status == "UpToDate" if hasattr(result, 'status') else False
     }
-    
+
     print("Intel TDX quote verified:", intel_result["verified"])
     
     return intel_result
@@ -225,7 +241,7 @@ def show_compose(attestation, intel_result):
 
     mr_config = intel_result["quote"]["body"]["mrconfig"]
     print("mr_config (from verified quote):", mr_config)
-    expected_mr_config = "0x01" + compose_hash
+    expected_mr_config = "01" + compose_hash
     print("mr_config matches compose hash:", mr_config.lower().startswith(expected_mr_config.lower()))
 
 
@@ -234,9 +250,10 @@ def verify_attestation(attestation, request_nonce, verify_model=False):
     print("\n🔐 Attestation")
     print(attestation)
 
+    print("Request nonce:", request_nonce)
+
     if verify_model:
         print("\nSigning address:", attestation["signing_address"])
-        print("Request nonce:", request_nonce)
 
     print("\n🔐 Intel TDX quote")
     intel_result = check_tdx_quote_local(attestation)
@@ -262,9 +279,9 @@ def main() -> None:
     # Handle both single attestation and multi-node response formats
     model_attestations = report.get("all_attestations", [report]) if report.get("all_attestations") else [report]
 
-    print("\n🔐 Model attestations")
-    for model_attestation in model_attestations:
-        verify_attestation(model_attestation, request_nonce, verify_model=True)
+    # print("\n🔐 Model attestations")
+    # for model_attestation in model_attestations:
+    #     verify_attestation(model_attestation, request_nonce, verify_model=True)
 
     print("\n🔐 Gateway attestation")
     gateway_attestation = report.get("gateway_attestation")
