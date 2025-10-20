@@ -19,10 +19,11 @@ Python tools for validating NEAR AI Cloud attestation reports and response signa
 
 ## 📋 Requirements
 
+- Get NEAR AI Cloud API key from [cloud.near.ai](https://cloud.near.ai)
+
 ### Python
 - Python 3.10+
 - `requests`, `eth-account`, `dcap-qvl`
-- NEAR AI Cloud API key from [cloud.near.ai](https://cloud.near.ai) (for signature verifier only)
 
 ### TypeScript
 - Node.js 20+
@@ -30,7 +31,6 @@ Python tools for validating NEAR AI Cloud attestation reports and response signa
 - `ethers` for cryptographic operations
 - `tsx` for TypeScript execution
 - `dcap-qvl` for verifying TDX quotes
-- NEAR AI Cloud API key from [cloud.near.ai](https://cloud.near.ai) (for signature verifier only)
 
 ## 🚀 Quick Start
 
@@ -44,24 +44,23 @@ cd nearai-cloud-verifier
 pip install -r requirements.txt
 
 # For TypeScript
-npm install
-# or
+npm install -g pnpm
 pnpm install
 ```
 
-### Attestation Verification (Requires API Key)
+### Attestation Verification
 
 ```bash
+export API_KEY=sk-your-api-key-here
+
 # Python
 python3 py/model_verifier.py --model deepseek-v3.1
 
 # TypeScript
-npm run model -- --model deepseek-v3.1
-# Or run directly with tsx
-npx tsx src/model_verifier.ts --model deepseek-v3.1
+pnpm run model -- --model deepseek-v3.1
 ```
 
-### Signature Verification (Requires API Key)
+### Signature Verification
 
 ```bash
 export API_KEY=sk-your-api-key-here
@@ -71,11 +70,11 @@ python3 py/chat_verifier.py --model deepseek-v3.1
 
 # TypeScript
 npm run chat -- --model deepseek-v3.1
-# Or run directly with tsx
-npx tsx src/chat_verifier.ts --model deepseek-v3.1
 ```
 
-## 🔐 Attestation Verifier
+## 🔐 Model Verifier
+
+### Model Attestations
 
 Generates a fresh nonce, requests a new attestation, and verifies:
 - **GPU attestation**: Submits GPU evidence payload to NVIDIA NRAS and verifies the nonce matches
@@ -83,19 +82,67 @@ Generates a fresh nonce, requests a new attestation, and verifies:
 - **Intel TDX quote**: Verifies TDX quote via NEAR AI Cloud's verification service
 - **Compose manifest**: Displays Docker compose manifest and verifies it matches the mr_config measurement
 
+### Gateway Attestations
+
+The model verifier also verifies the private inference gateway for
+- **TDX report data**: Validates that report data binds the includes the nonce
+- **Intel TDX quote**: Verifies TDX quote via NEAR AI Cloud's verification service
+- **Compose manifest**: Displays Docker compose manifest and verifies it matches the mr_config measurement
+
+
 ### Usage
 
 ```bash
+# Python
 python3 py/model_verifier.py [--model MODEL_NAME]
+
+# TypeScript
+pnpm run model -- [--model MODEL_NAME]
 ```
 
 **Default model**: `deepseek-v3.1`
 
 API key is required. The verifier fetches attestations from the `/v1/attestation/report` endpoint.
 
-### Example Output
+### Example Output for Gateway Attestation
 
 ```
+========================================
+🔐 Gateway attestation
+========================================
+
+Request nonce: abc123...
+
+🔐 TDX report data
+Signing algorithm: ecdsa
+Report data binds signing address: True
+Report data embeds request nonce: True
+
+🔐 Intel TDX quote
+Intel TDX quote verified: True
+
+Docker compose manifest attested by the enclave:
+services:
+  nearai-cloud-server:
+    image: ghcr.io/nearai-cloud/nearai-cloud-server@sha256:xxxxx
+    ...
+
+Compose sha256: abc123...
+mr_config (from verified quote): 0x01abc123...
+mr_config matches compose hash: True
+
+🔐 Sigstore provenance
+Checking Sigstore accessibility for container images...
+  ✓ https://search.sigstore.dev/?hash=sha256:c63f9... (HTTP 200)
+```
+
+### Example Output for Model Attestation
+
+```
+========================================
+🔐 Model attestations: (#1)
+========================================
+
 Signing address: 0x1234...
 Request nonce: abc123...
 
@@ -166,7 +213,11 @@ API_KEY=sk-your-api-key-here
 Then run:
 
 ```bash
+# Python
 python3 py/model_verifier.py [--model MODEL_NAME]
+
+# TypeScript
+pnpm run model -- [--model MODEL_NAME]
 ```
 
 **Default model**: `deepseek-v3.1`
@@ -180,77 +231,6 @@ python3 py/model_verifier.py [--model MODEL_NAME]
 ✅ **GPU Attestation** - Passes NVIDIA verification
 ✅ **Intel TDX Quote** - Valid CPU TEE measurements
 
-## 📘 TypeScript Implementation
-
-The TypeScript implementation provides the same verification capabilities as Python with additional type safety and modern JavaScript features.
-
-### TypeScript Quick Start
-
-```bash
-export API_KEY=sk-your-api-key-here
-
-# Install dependencies
-npm install
-# or
-pnpm install
-
-# Run attestation verification
-npm run model -- --model deepseek-v3.1
-
-# Run signature verification
-npm run chat -- --model deepseek-v3.1
-```
-
-### Direct Execution 
-
-```bash
-# Run directly with tsx
-npx tsx src/model_verifier.ts --model deepseek-v3.1
-npx tsx src/chat_verifier.ts --model deepseek-v3.1
-```
-
-### TypeScript Programmatic API
-
-```typescript
-import {
-  fetchReport,
-  checkTdxQuote,
-  checkReportData,
-  checkGpu,
-  showSigstoreProvenance,
-  AttestationReport,
-  IntelResult
-} from 'nearai-cloud-verifier';
-import * as crypto from 'crypto';
-
-// Generate fresh nonce
-const nonce = crypto.randomBytes(32).toString('hex');
-
-// Fetch attestation
-const attestation: AttestationReport = await fetchReport('deepseek-v3.1', nonce);
-
-// Verify all components
-const intelResult: IntelResult = await checkTdxQuote(attestation);
-checkReportData(attestation, nonce, intelResult);
-await checkGpu(attestation, nonce);
-await showSigstoreProvenance(attestation);
-```
-
-### TypeScript Development
-
-```bash
-# Install development dependencies
-npm install
-```
-
-### TypeScript Features
-
-- **Type Safety**: Full TypeScript definitions for all interfaces
-- **Modern ES2020**: Uses latest JavaScript features
-- **Ethers.js Integration**: Native Web3 cryptographic operations
-- **Async/Await**: Modern asynchronous programming patterns
-- **Source Maps**: Full debugging support
-- **Declaration Files**: Complete `.d.ts` files for library usage
 
 ## 📦 Sigstore Provenance
 
@@ -358,13 +338,9 @@ python3 py/model_verifier.py --model gpt-oss-120b
 
 # TypeScript - Verify default model
 npm run model
-# or
-npx tsx src/model_verifier.ts
 
 # TypeScript - Verify specific model
 npm run model -- --model gpt-oss-120b
-# or
-npx tsx src/model_verifier.ts --model gpt-oss-120b
 ```
 
 ### Signature Verification with Custom Model
@@ -377,8 +353,6 @@ python3 py/chat_verifier.py --model deepseek-v3.1
 
 # TypeScript
 npm run chat -- --model deepseek-v3.1
-# or
-npx tsx src/chat_verifier.ts --model deepseek-v3.1
 ```
 
 ### Programmatic Usage
@@ -454,13 +428,8 @@ python3 py/model_verifier.py --model deepseek-v3.1
 python3 py/chat_verifier.py --model deepseek-v3.1
 
 # Test TypeScript verifiers
-npm run build
 npm run model -- --model deepseek-v3.1
 npm run chat -- --model deepseek-v3.1
-
-# Or test directly with tsx
-npx tsx src/model_verifier.ts --model deepseek-v3.1
-npx tsx src/chat_verifier.ts --model deepseek-v3.1
 ```
 
 5. Commit your changes (`git commit -m 'Add amazing feature'`)
@@ -478,4 +447,4 @@ Built with:
 - [Intel TDX](https://www.intel.com/content/www/us/en/developer/tools/trust-domain-extensions/overview.html) - CPU TEE technology
 - [Sigstore](https://www.sigstore.dev/) - Container supply chain verification
 
-Powered by [NEAR AI Cloud](https://github.com/nearai-cloud/nearai-cloud-server) and [NEAR AI Cloud](https://cloud.near.ai) TEE infrastructure.
+Powered by [NEAR AI Cloud](https://github.com/nearai-cloud/nearai-cloud-server)

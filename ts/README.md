@@ -8,25 +8,19 @@ TypeScript implementations of NEAR AI Cloud cryptographic verification tools.
 npm install
 ```
 
-## Build
-
-```bash
-npm run build
-```
-
 ## Usage
 
-### Attestation Verification (No API Key)
+### Model Verification
 
 ```bash
-npm run attestation -- --model deepseek-v3.1
+npm run model -- --model deepseek-v3.1
 ```
 
-### Signature Verification (Requires API Key)
+### Chat Verification
 
 ```bash
 export API_KEY=sk-your-api-key-here
-npm run signature -- --model deepseek-v3.1
+npm run chat -- --model deepseek-v3.1
 ```
 
 ## Programmatic Usage
