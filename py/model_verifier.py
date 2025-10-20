@@ -17,7 +17,6 @@ BASE_URL = os.environ.get("BASE_URL", "https://cloud-api.near.ai")
 API_KEY = os.environ.get("API_KEY", "")
 
 GPU_VERIFIER_API = "https://nras.attestation.nvidia.com/v3/attest/gpu"
-PHALA_TDX_VERIFIER_API = "https://cloud-api.phala.network/api/v1/attestations/verify"
 SIGSTORE_SEARCH_BASE = "https://search.sigstore.dev/?hash="
 
 
@@ -99,41 +98,17 @@ def check_gpu(attestation, request_nonce):
     }
 
 
-def check_tdx_quote_remote(attestation):
-    """Verify Intel TDX quote via Phala Network's verification service.
-
-    Returns the full intel_result including decoded quote data.
-    """
-    intel_result = requests.post(PHALA_TDX_VERIFIER_API, json={"hex": attestation["intel_quote"]}, timeout=30).json()
-    payload = intel_result.get("quote") or {}
-    verified = payload.get("verified")
-    print("Intel TDX quote verified:", verified)
-    message = payload.get("message") or intel_result.get("message")
-    if message:
-        print("Intel TDX verifier message:", message)
-
-    return intel_result
-
-def check_tdx_quote_local(attestation):
+async def check_tdx_quote(attestation):
     """Verify Intel TDX quote via dcap-qvl verification service.
 
     Returns the full intel_result including decoded quote data.
     """
     intel_quote = attestation["intel_quote"]
 
-    # get quote collateral
-    proof_response = requests.post('https://proof.t16z.com/api/upload', data={'hex': intel_quote}).json()
-    collateral_json = proof_response.get("quote_collateral")
-
-    # Create collateral object
-    collateral = dcap_qvl.QuoteCollateralV3.from_json(json.dumps(collateral_json))
-
-    # Verify the quote
-    now = int(time.time())
     try:
         # Convert hex string to bytes
         intel_quote_bytes = bytes.fromhex(intel_quote)
-        result = dcap_qvl.verify(intel_quote_bytes, collateral, now)
+        result = await dcap_qvl.get_collateral_and_verify(intel_quote_bytes)
 
         print("TDX quote verification result:", result.to_json())
         result_json = json.loads(result.to_json())
@@ -233,7 +208,6 @@ def show_compose(attestation, intel_result):
     if not app_compose:
         return
     docker_compose = json.loads(app_compose)["docker_compose_file"]
-        
     print("\nDocker compose manifest attested by the enclave:")
     print(docker_compose)
 
@@ -246,7 +220,7 @@ def show_compose(attestation, intel_result):
     print("mr_config matches compose hash:", mr_config.lower().startswith(expected_mr_config.lower()))
 
 
-def verify_attestation(attestation, request_nonce, verify_model=False):
+async def verify_attestation(attestation, request_nonce, verify_model=False):
     """Verify the attestation."""
     print("\n🔐 Attestation")
     # print(attestation)
@@ -257,7 +231,7 @@ def verify_attestation(attestation, request_nonce, verify_model=False):
         print("\nSigning address:", attestation["signing_address"])
 
     print("\n🔐 Intel TDX quote")
-    intel_result = check_tdx_quote_local(attestation)
+    intel_result = await check_tdx_quote(attestation)
 
     print("\n🔐 TDX report data")
     check_report_data(attestation, request_nonce, intel_result, verify_model)
@@ -269,7 +243,8 @@ def verify_attestation(attestation, request_nonce, verify_model=False):
     show_compose(attestation, intel_result)
     show_sigstore_provenance(attestation)
 
-def main() -> None:
+
+async def main() -> None:
     parser = argparse.ArgumentParser(description="Verify NEAR AI Cloud TEE Attestation")
     parser.add_argument("--model", default="deepseek-v3.1")
     args = parser.parse_args()
@@ -277,15 +252,23 @@ def main() -> None:
     request_nonce = secrets.token_hex(32)
     report = fetch_report(args.model, request_nonce)
 
-    print("\n🔐 Gateway attestation")
+    print("========================================")
+    print("🔐 Gateway attestation")
+    print("========================================")
     gateway_attestation = report.get("gateway_attestation")
     if gateway_attestation:
-        verify_attestation(gateway_attestation, request_nonce, verify_model=False)
+        await verify_attestation(gateway_attestation, request_nonce, verify_model=False)
 
-    print("\n🔐 Model attestations")
-    model_attestations = report.get("model_attestations", [])
+    # model_attestations = report.get("model_attestations", [])
+    model_attestations = report.get("all_attestations", [report])
+    index = 0
     for model_attestation in model_attestations:
-        verify_attestation(model_attestation, request_nonce, verify_model=True)
+        index += 1
+        print("\n\n\n========================================")
+        print(f"🔐 Model attestations: (#{index})")
+        print("========================================")
+        await verify_attestation(model_attestation, request_nonce, verify_model=True)
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
