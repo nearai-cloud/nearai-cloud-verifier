@@ -2,6 +2,7 @@
 """Minimal guide for checking signed chat responses."""
 
 import argparse
+import asyncio
 import json
 import os
 import secrets
@@ -27,9 +28,9 @@ def sha256_text(text):
     return sha256(text.encode()).hexdigest()
 
 
-def fetch_signature(chat_id, model):
+def fetch_signature(chat_id, model, signing_algo="ecdsa"):
     """Fetch signature for a chat completion."""
-    url = f"{BASE_URL}/v1/signature/{chat_id}?model={model}"
+    url = f"{BASE_URL}/v1/signature/{chat_id}?model={model}&signing_algo={signing_algo}"
     headers = {"Authorization": f"Bearer {API_KEY}"}
     return requests.get(url, headers=headers, timeout=30).json()
 
@@ -60,16 +61,24 @@ def fetch_attestation_for(signing_address, model):
     return attestation, nonce
 
 
-def check_attestation(signing_address, attestation, nonce):
+async def check_attestation(signing_address, attestation, nonce):
     """Verify attestation for a signing address (calls check_report_data, check_gpu, check_tdx_quote)."""
-    intel_result = check_tdx_quote(attestation)
+    intel_result = await check_tdx_quote(attestation)
     check_report_data(attestation, nonce, intel_result)
     check_gpu(attestation, nonce)
     show_sigstore_provenance(attestation)
 
 
-def verify_chat(chat_id, request_body, response_text, label, model):
+async def verify_chat(chat_id, request_body, response_text, label, model):
     """Verify a chat completion signature and attestation."""
+
+    print(f"Chat ID: {chat_id}")
+    print(f"Request body: {request_body}")
+    print(f"Response text: {response_text}")
+    print(f"Label: {label}")
+    print(f"Model: {model}")
+    print("========================================")
+
     request_hash = sha256_text(request_body)
     response_hash = sha256_text(response_text)
 
@@ -90,10 +99,10 @@ def verify_chat(chat_id, request_body, response_text, label, model):
     attestation, nonce = fetch_attestation_for(signing_address, model)
     print("\nAttestation signer:", attestation["signing_address"])
     print("Attestation nonce:", nonce)
-    check_attestation(signing_address, attestation, nonce)
+    await check_attestation(signing_address, attestation, nonce)
 
 
-def streaming_example(model):
+async def streaming_example(model):
     body = {
         "model": model,
         "messages": [{"role": "user", "content": "Hello, how are you?"}],
@@ -117,10 +126,10 @@ def streaming_example(model):
         if line.startswith("data: {") and chat_id is None:
             chat_id = json.loads(line[6:])['id']
 
-    verify_chat(chat_id, body_json, response_text, "Streaming example", model)
+    await verify_chat(chat_id, body_json, response_text, "Streaming example", model)
 
 
-def non_streaming_example(model):
+async def non_streaming_example(model):
     body = {
         "model": model,
         "messages": [{"role": "user", "content": "Hello, how are you?"}],
@@ -137,10 +146,10 @@ def non_streaming_example(model):
 
     payload = response.json()
     chat_id = payload["id"]
-    verify_chat(chat_id, body_json, response.text, "Non-streaming example", model)
+    await verify_chat(chat_id, body_json, response.text, "Non-streaming example", model)
 
 
-def main():
+async def main():
     """Run example verification of streaming and non-streaming chat completions."""
     parser = argparse.ArgumentParser(description="Verify NEAR AI Cloud Signed Chat Responses")
     parser.add_argument("--model", default="deepseek-v3.1")
@@ -150,9 +159,9 @@ def main():
         print("Error: API_KEY environment variable is required")
         print("Set it with: export API_KEY=your-api-key")
         return
-    streaming_example(args.model)
-    non_streaming_example(args.model)
+    await streaming_example(args.model)
+    await non_streaming_example(args.model)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
