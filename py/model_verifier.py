@@ -13,17 +13,18 @@ from hashlib import sha256
 
 import requests
 
-API_BASE = os.environ.get("NEAR_AI_CLOUD_API_BASE", "https://cloud-api.near.ai")
+BASE_URL = os.environ.get("BASE_URL", "https://cloud-api.near.ai")
+API_KEY = os.environ.get("API_KEY", "")
+
 GPU_VERIFIER_API = "https://nras.attestation.nvidia.com/v3/attest/gpu"
 PHALA_TDX_VERIFIER_API = "https://cloud-api.phala.network/api/v1/attestations/verify"
 SIGSTORE_SEARCH_BASE = "https://search.sigstore.dev/?hash="
-NEAR_AI_CLOUD_API_KEY = os.environ.get("NEAR_AI_CLOUD_API_KEY", "")
 
 
 def fetch_report(model, nonce):
     """Fetch attestation report from the API."""
-    url = f"{API_BASE}/v1/attestation/report?model={model}&nonce={nonce}"
-    return requests.get(url, timeout=30, headers={"Authorization": f"Bearer {NEAR_AI_CLOUD_API_KEY}"}).json()
+    url = f"{BASE_URL}/v1/attestation/report?model={model}&nonce={nonce}"
+    return requests.get(url, timeout=30, headers={"Authorization": f"Bearer {API_KEY}"}).json()
 
 def fetch_nvidia_verification(payload):
     """Submit GPU evidence to NVIDIA NRAS for verification."""
