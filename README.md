@@ -327,7 +327,7 @@ The verifier filters `model_attestations` to find the entry matching the signatu
 
 ## 📖 Usage Examples
 
-### Basic Attestation Verification
+### Basic Model Verification
 
 ```bash
 # Python - Verify confidential model
