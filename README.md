@@ -49,17 +49,15 @@ npm install
 pnpm install
 ```
 
-### Attestation Verification (No API Key)
+### Attestation Verification (Requires API Key)
 
 ```bash
 # Python
 python3 py/model_verifier.py --model deepseek-v3.1
 
 # TypeScript
-npm run build
 npm run model -- --model deepseek-v3.1
-
-# Or run directly with tsx (no build required)
+# Or run directly with tsx
 npx tsx src/model_verifier.ts --model deepseek-v3.1
 ```
 
@@ -72,10 +70,8 @@ export API_KEY=sk-your-api-key-here
 python3 py/chat_verifier.py --model deepseek-v3.1
 
 # TypeScript
-npm run build
 npm run chat -- --model deepseek-v3.1
-
-# Or run directly with tsx (no build required)
+# Or run directly with tsx
 npx tsx src/chat_verifier.ts --model deepseek-v3.1
 ```
 
@@ -90,12 +86,12 @@ Generates a fresh nonce, requests a new attestation, and verifies:
 ### Usage
 
 ```bash
-python3 model_verifier.py [--model MODEL_NAME]
+python3 py/model_verifier.py [--model MODEL_NAME]
 ```
 
 **Default model**: `deepseek-v3.1`
 
-No API key required. The verifier fetches attestations from the public `/v1/attestation/report` endpoint.
+API key is required. The verifier fetches attestations from the `/v1/attestation/report` endpoint.
 
 ### Example Output
 
@@ -170,7 +166,7 @@ API_KEY=sk-your-api-key-here
 Then run:
 
 ```bash
-python3 chat_verifier.py [--model MODEL_NAME]
+python3 py/model_verifier.py [--model MODEL_NAME]
 ```
 
 **Default model**: `deepseek-v3.1`
@@ -191,23 +187,21 @@ The TypeScript implementation provides the same verification capabilities as Pyt
 ### TypeScript Quick Start
 
 ```bash
+export API_KEY=sk-your-api-key-here
+
 # Install dependencies
 npm install
 # or
 pnpm install
 
-# Build the project
-npm run build
-
-# Run attestation verification (no API key required)
+# Run attestation verification
 npm run model -- --model deepseek-v3.1
 
-# Run signature verification (requires API key)
-export API_KEY=sk-your-api-key-here
+# Run signature verification
 npm run chat -- --model deepseek-v3.1
 ```
 
-### Direct Execution (No Build Required)
+### Direct Execution 
 
 ```bash
 # Run directly with tsx
@@ -247,15 +241,6 @@ await showSigstoreProvenance(attestation);
 ```bash
 # Install development dependencies
 npm install
-
-# Build TypeScript
-npm run build
-
-# Watch mode for development
-npx tsc --watch
-
-# Run tests (if available)
-npm test
 ```
 
 ### TypeScript Features
@@ -296,7 +281,7 @@ In production deployments with multiple backend servers behind a load balancer:
 
 - Each server has its own unique signing key/address
 - Attestation requests with `signing_address` parameter return 404 if the address doesn't match
-- Response includes `all_attestations: [attestation]` (single-element array with this server's attestation)
+- Response includes `model_attestations: [attestation]` (single-element array with this server's attestation)
 
 ### Load Balancer Requirements
 
@@ -304,7 +289,7 @@ When `/v1/attestation/report?signing_address={addr}&nonce={nonce}`:
 
 1. **Broadcast** the request to all backend servers
 2. Collect non-404 responses from servers matching the signing_address
-3. Merge `all_attestations` arrays from all responses
+3. Merge `model_attestations` arrays from all responses
 4. Return combined response with all servers' attestations
 
 ### Verifier Flow
@@ -312,7 +297,7 @@ When `/v1/attestation/report?signing_address={addr}&nonce={nonce}`:
 1. Get signature → extract `signing_address`
 2. Request attestation with `signing_address` parameter
 3. LB broadcasts → collect attestations from all servers
-4. Verifier finds matching attestation by comparing `signing_address` in `all_attestations`
+4. Verifier finds matching attestation by comparing `signing_address` in `model_attestations`
 
 ### Example Response (Multi-Server)
 
@@ -320,14 +305,14 @@ When `/v1/attestation/report?signing_address={addr}&nonce={nonce}`:
 {
   "signing_address": "0xServer1...",
   "intel_quote": "...",
-  "all_attestations": [
+  "model_attestations": [
     {"signing_address": "0xServer1...", "intel_quote": "...", ...},
     {"signing_address": "0xServer2...", "intel_quote": "...", ...}
   ]
 }
 ```
 
-The verifier filters `all_attestations` to find the entry matching the signature's `signing_address`.
+The verifier filters `model_attestations` to find the entry matching the signature's `signing_address`.
 
 ## 🔬 Verification Architecture
 
@@ -411,7 +396,7 @@ nonce = secrets.token_hex(32)
 attestation = fetch_report("deepseek-v3.1", nonce)
 
 # Verify all components
-intel_result = check_tdx_quote(attestation)
+intel_result = await check_tdx_quote(attestation)
 check_report_data(attestation, nonce, intel_result)
 check_gpu(attestation, nonce)
 ```
@@ -447,14 +432,10 @@ await showSigstoreProvenance(attestation);
 
 ### With NEAR AI Cloud Gateway
 
-These verifiers work with [NEAR AI Cloud Gateway](https://github.com/nearai-cloud/nearai-cloud-gateway) attestation endpoints:
+These verifiers work with [NEAR AI Cloud Gateway](https://github.com/nearai-cloud/nearai-cloud-server) attestation endpoints:
 
 - `GET /v1/attestation/report` - Get TEE attestation
 - `GET /v1/signature/{chat_id}` - Get response signature
-
-### With NEAR AI Cloud Chat
-
-[NEAR AI Cloud Chat](https://github.com/nearai-cloud/nearai-cloud-chat) uses these verification methods to display TEE status in the UI.
 
 ## 🤝 Contributing
 
