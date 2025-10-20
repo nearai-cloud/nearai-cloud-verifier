@@ -48,6 +48,9 @@ def check_report_data(attestation, request_nonce, intel_result, verify_model=Fal
     signing_address = attestation["signing_address"] if verify_model else "0x0000000000000000000000000000000000000000000000000000000000000000"
     signing_algo = attestation.get("signing_algo", "ecdsa").lower()
 
+    print("signing address:", signing_address)
+    print("signing algo:", signing_algo)
+
     # Parse signing address bytes based on algorithm
     if signing_algo == "ecdsa":
         addr_hex = signing_address.removeprefix("0x")
@@ -62,8 +65,12 @@ def check_report_data(attestation, request_nonce, intel_result, verify_model=Fal
     embeds_nonce = embedded_nonce.hex() == request_nonce
 
     print("Signing algorithm:", signing_algo)
-    print("Report data binds signing address:", binds_address, "expected:", signing_address_bytes.hex(), "actual:", embedded_address.hex())
-    print("Report data embeds request nonce:", embeds_nonce, "expected:", request_nonce, "actual:", embedded_nonce.hex())
+    print("Report data binds signing address:", binds_address)
+    if not binds_address:
+        print("Report data binds signing address:", "expected:", signing_address_bytes.hex(), "actual:", embedded_address.hex())
+    print("Report data embeds request nonce:", embeds_nonce)
+    if not embeds_nonce:
+        print("Report data embeds request nonce:", "expected:", request_nonce, "actual:", embedded_nonce.hex())
 
     return {
         "binds_address": binds_address,
@@ -142,14 +149,10 @@ def check_tdx_quote_local(attestation):
     # Extract report_data and mr_config from the verification result
     report_data = ""
     mr_config = ""
-    
     if 'report' in result_json and 'TD10' in result_json['report']:
         td10 = result_json['report']['TD10']
         report_data = td10.get('report_data', "")
         mr_config = td10.get('mr_config_id', "")
-
-    print("Report data:", report_data)
-    print("MR config:", mr_config)
 
     # Create a result structure similar to the remote verification
     intel_result = {
@@ -248,7 +251,7 @@ def show_compose(attestation, intel_result):
 def verify_attestation(attestation, request_nonce, verify_model=False):
     """Verify the attestation."""
     print("\n🔐 Attestation")
-    print(attestation)
+    # print(attestation)
 
     print("Request nonce:", request_nonce)
 
@@ -259,7 +262,7 @@ def verify_attestation(attestation, request_nonce, verify_model=False):
     intel_result = check_tdx_quote_local(attestation)
 
     print("\n🔐 TDX report data")
-    check_report_data(attestation, request_nonce, intel_result)
+    check_report_data(attestation, request_nonce, intel_result, verify_model)
 
     if verify_model:
         print("\n🔐 GPU attestation")
@@ -276,17 +279,15 @@ def main() -> None:
     request_nonce = secrets.token_hex(32)
     report = fetch_report(args.model, request_nonce)
 
-    # Handle both single attestation and multi-node response formats
-    model_attestations = report.get("all_attestations", [report]) if report.get("all_attestations") else [report]
-
-    # print("\n🔐 Model attestations")
-    # for model_attestation in model_attestations:
-    #     verify_attestation(model_attestation, request_nonce, verify_model=True)
-
     print("\n🔐 Gateway attestation")
     gateway_attestation = report.get("gateway_attestation")
     if gateway_attestation:
         verify_attestation(gateway_attestation, request_nonce, verify_model=False)
+
+    print("\n🔐 Model attestations")
+    model_attestations = report.get("model_attestations", [])
+    for model_attestation in model_attestations:
+        verify_attestation(model_attestation, request_nonce, verify_model=True)
 
 if __name__ == "__main__":
     main()
